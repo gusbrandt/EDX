@@ -110,13 +110,14 @@ function del(en){
 }
 function entryRow(en, showDate){
   const c = cat(en.cat) || {emoji:'❓',unit:'',color:'#888',name:'?'};
-  const meta = [showDate?en.date:'', en.time, c.name, en.amount?`${num(en.amount)} ${c.unit}`:''].filter(Boolean).join(' · ');
+  const meta = [showDate?en.date:'', en.time, c.name].filter(Boolean).join(' · ');
   return el('li',{style:`--c:${c.color}`},
-    el('span',{textContent:c.emoji,style:'font-size:1.4rem'}),
+    el('div',{className:'chip',textContent:c.emoji}),
     el('div',{className:'body'},
       el('div',{className:'t',textContent:en.title}),
       el('div',{className:'m',textContent:meta}),
       en.notes ? el('div',{className:'m',textContent:en.notes}) : ''),
+    en.amount ? el('div',{className:'amt',textContent:`${num(en.amount)} ${c.unit}`}) : '',
     el('button',{textContent:'Edit',onclick:()=>startEdit(en)}),
     el('button',{textContent:'✕',title:'Delete',onclick:()=>del(en)}));
 }
@@ -131,16 +132,17 @@ function renderToday(){
   const sums = sumBy(d);
   $('#totals').replaceChildren(...state.cats.map(c=>{
     const v = sums[c.id]||0;
-    const pct = c.goal ? Math.min(100, v/c.goal*100) : 0;
-    return el('div',{className:'card',style:`--c:${c.color}`},
-      el('div',{className:'sub',textContent:`${c.emoji} ${c.name}`}),
-      el('div',{className:'big',textContent:`${num(v)} ${c.unit}`}),
-      c.goal ? el('div',{className:'bar'},el('i',{style:`width:${pct}%`})) : '',
-      c.goal ? el('div',{className:'sub',textContent:`goal ${num(c.goal)}`}) : '');
+    const pct = c.goal ? Math.min(100, v/c.goal*100) : (v?100:0);
+    return el('div',{className:'card'+(c.goal&&v>=c.goal?' done':''),style:`--c:${c.color}`},
+      el('div',{className:'ring',style:`--p:${pct}`,textContent:c.emoji}),
+      el('div',{},
+        el('div',{className:'sub',textContent:c.name}),
+        el('div',{className:'big'},num(v),el('small',{textContent:c.unit})),
+        c.goal ? el('div',{className:'sub',textContent:`of ${num(c.goal)} goal`}) : ''));
   }));
   const list = sorted(state.entries.filter(e=>e.date===d)).reverse();
   const ul = $('#day-list');
-  ul.replaceChildren(...(list.length ? list.map(e=>entryRow(e,false)) : [el('li',{className:'muted',textContent:'Nothing logged for this day yet.'})]));
+  ul.replaceChildren(...(list.length ? list.map(e=>entryRow(e,false)) : [el('li',{className:'empty',textContent:'✨ Nothing logged for this day yet. Add your first entry above.'})]));
 }
 
 // ---------- history ----------
@@ -181,7 +183,8 @@ function renderTrends(){
     const logged = vals.filter(v=>v>0).length;
     box.append(el('div',{className:'trend',style:`--c:${c.color}`},
       el('h2',{textContent:`${c.emoji} ${c.name}`}),
-      el('div',{className:'muted',textContent:`7-day total ${num(total)} ${c.unit} · avg ${num(logged?total/logged:0)}/day logged · ${logged}/7 days · streak ${streak(c)}`}),
+      el('div',{className:'stats'},
+        ...[`${num(total)} ${c.unit} this week`,`avg ${num(logged?total/logged:0)}/day`,`${logged}/7 days`,`🔥 ${streak(c)} day streak`].map(t=>el('span',{textContent:t}))),
       el('div',{className:'chart'}, ...vals.map((v,i)=>
         el('div',{title:`${days[i]}: ${num(v)} ${c.unit}`},
           el('i',{style:`height:${v/max*70}%`}),
@@ -194,7 +197,7 @@ function renderSettings(){
   $('#cat-list').replaceChildren(...state.cats.map(c=>{
     const n = state.entries.filter(e=>e.cat===c.id).length;
     return el('li',{style:`--c:${c.color}`},
-      el('span',{textContent:c.emoji,style:'font-size:1.4rem'}),
+      el('div',{className:'chip',textContent:c.emoji}),
       el('div',{className:'body'},
         el('div',{className:'t',textContent:c.name}),
         el('div',{className:'m',textContent:`unit: ${c.unit} · ${n} entries`})),
